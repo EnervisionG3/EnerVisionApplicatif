@@ -19,3 +19,12 @@ async def get_current_reading(site_id: str) -> EnergyReading | None:
         return None
     response.raise_for_status()
     return EnergyReading(**response.json())
+
+
+async def get_current_reading_raw(site_id: str) -> httpx.Response:
+    """Réponse HTTP brute, non parsée — pour l'archivage avant transformation.
+
+    Contrairement à get_current_reading, ne normalise pas le 404 en None :
+    c'est à l'appelant d'inspecter response.status_code lui-même.
+    """
+    return await _client.get(f"/api/v1/sites/{site_id}/current")

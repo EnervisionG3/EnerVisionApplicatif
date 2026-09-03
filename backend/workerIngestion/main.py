@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from backend.workerIngestion import blob_archive, repository
 from backend.workerIngestion.api.routes import sites_router
 from backend.workerIngestion.poller import poll_loop
 
@@ -18,6 +19,8 @@ async def lifespan(app: FastAPI):
     task = asyncio.create_task(poll_loop())
     yield
     task.cancel()
+    await repository._client.aclose()
+    await blob_archive._container_client.close()
 
 
 app = FastAPI(
@@ -25,7 +28,8 @@ app = FastAPI(
     description=(
         "Proxy fidèle de la Mock API IoT (cf. EADL - 04) — dernière lecture "
         "connue d'un site. Poll la Mock API en tâche de fond (toutes les "
-        "POLL_INTERVAL_SECONDS) et, à terme, écrit les lots bruts sur Azure Blob."
+        "POLL_INTERVAL_SECONDS) et archive chaque lecture brute sur Azure Blob "
+        "avant toute transformation."
     ),
     version="1.0.0",
     lifespan=lifespan,

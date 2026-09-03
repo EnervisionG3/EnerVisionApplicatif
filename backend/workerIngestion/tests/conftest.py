@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from backend.workerIngestion import repository
+from backend.workerIngestion import blob_archive, repository
 
 # Jeux de données figés, calqués sur la forme réelle de la Mock API
 # (vérifiée en direct sur http://10.105.200.45:8000) mais avec des valeurs
@@ -73,3 +73,15 @@ def mock_httpx(monkeypatch):
         raise AssertionError(f"URL non mockée dans ce test : {url}")
 
     monkeypatch.setattr(repository._client, "get", fake_get)
+
+
+@pytest.fixture
+def mock_blob(monkeypatch):
+    """Route l'écriture Blob vers une liste en mémoire, sans appel réseau/Azure."""
+    uploads: list[dict] = []
+
+    async def fake_upload_blob(name, data, overwrite=False):
+        uploads.append({"name": name, "data": data, "overwrite": overwrite})
+
+    monkeypatch.setattr(blob_archive._container_client, "upload_blob", fake_upload_blob)
+    return uploads
