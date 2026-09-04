@@ -1,65 +1,64 @@
+# Configuration Docker Compose de base : services applicatifs d'EnerVision.
+#
+# `docker compose up -d` (sans -f additionnel) utilise CE fichier seul :
+# ni Keycloak local, ni Traefik local, aucun raccourci de développement
+# (bind mount du code, --reload). Les services se connectent à
+# l'infrastructure désignée par .env (Keycloak distant par défaut).
+#
+# Ce fichier n'est PAS le pipeline de déploiement CI/CD : le déploiement
+# réel (voir deploy.sh) cible docker-compose-prod.yaml, géré séparément,
+# par service, avec des images GHCR. Celui-ci est la configuration à
+# utiliser depuis un poste développeur, avec des valeurs par défaut sûres.
+#
+# Mode local (Keycloak + Traefik locaux, hot-reload) : voir README ou
+# `.\docker.ps1 local up`.
 services:
-  # traefik:
-  #   image: traefik:v3.7
-  #   container_name: traefik
-  #   cap_add:
-  #     - NET_BIND_SERVICE
-  #   command:
-  #     - --entrypoints.websecure.address=:443
-  #     - --providers.file.filename=/etc/traefik/dynamic.yml
-  #   ports:
-  #     - 443:443
-  #   volumes:
-  #     - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
-  #     - ./certs:/certs:ro
   backend:
+    build:
+      context: .
+      dockerfile: backend/core/Dockerfile
     networks:
       - enervision_network
-    build:
-      context: .
-      dockerfile: Dockerfile
-
     ports:
       - "8000:8000"
+    env_file:
+      - .env
+    secrets:
+      - db_password
+      - keycloak_client_secret
 
-    volumes:
-      - ./backend:/backend
-
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_APP_USER: ${POSTGRES_APP_USER}
-      POSTGRES_APP_PWD: ${POSTGRES_APP_PWD}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
     networks:
       - enervision_network
     ports:
       - "8501:8501"
     environment:
-      BACKEND_URL: http://backend:8000
+      BACKEND_URL: ${BACKEND_URL}
     volumes:
-      - ./frontend:/frontend
+      - ./frontend/.streamlit/secrets.toml:/frontend/.streamlit/secrets.toml:ro
 
   worker-ingestion:
     build:
       context: .
       dockerfile: backend/workeringestion/Dockerfile
-
+    networks:
+      - enervision_network
     environment:
-      MOCK_API_URL: http://10.105.200.45:8000
+      MOCK_API_URL: ${MOCK_API_URL}
       AZURE_STORAGE_ACCOUNT: ${AZURE_STORAGE_ACCOUNT}
       AZURE_STORAGE_CONTAINER_NAME: ${AZURE_STORAGE_CONTAINER_NAME}
       AZURE_SAS_INGESTION: ${AZURE_SAS_INGESTION}
 
-    volumes:
-      - ./backend/core:/backend/core
-      - ./backend/workeringestion:/backend/workeringestion
-
-    command: python -m workeringestion.main
+  health:
+    build:
+      context: .
+      dockerfile: backend/health/Dockerfile
+    networks:
+      - enervision_network
+    ports:
+      - "8002:8000"
 
 secrets:
   db_password:
