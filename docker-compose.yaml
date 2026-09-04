@@ -1,17 +1,3 @@
-# Configuration Docker Compose de base : services applicatifs d'EnerVision.
-#
-# `docker compose up -d` (sans -f additionnel) utilise CE fichier seul :
-# ni Keycloak local, ni Traefik local, aucun raccourci de développement
-# (bind mount du code, --reload). Les services se connectent à
-# l'infrastructure désignée par .env (Keycloak distant par défaut).
-#
-# Ce fichier n'est PAS le pipeline de déploiement CI/CD : le déploiement
-# réel (voir deploy.sh) cible docker-compose-prod.yaml, géré séparément,
-# par service, avec des images GHCR. Celui-ci est la configuration à
-# utiliser depuis un poste développeur, avec des valeurs par défaut sûres.
-#
-# Mode local (Keycloak + Traefik locaux, hot-reload) : voir README ou
-# `.\docker.ps1 local up`.
 services:
   backend:
     build:
@@ -59,6 +45,25 @@ services:
       - enervision_network
     ports:
       - "8002:8000"
+  etl:
+    networks:
+      - enervision_network
+    build:
+      context: .
+      dockerfile: backend/etl/Dockerfile
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER}
+      POSTGRES_APP_PWD: ${POSTGRES_APP_PWD}
+      AZURE_STORAGE_ACCOUNT: ${AZURE_STORAGE_ACCOUNT}
+      AZURE_STORAGE_CONTAINER_NAME: ${AZURE_STORAGE_CONTAINER_NAME}
+      AZURE_SAS_ETL: ${AZURE_SAS_ETL}
+
+    volumes:
+      - ./backend/etl:/backend/etl
+
+    command: python -m etl.main
 
 secrets:
   db_password:

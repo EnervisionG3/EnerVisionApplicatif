@@ -21,6 +21,13 @@ services:
     volumes:
       - ./backend/workeringestion:/backend/workeringestion
 
+  etl:
+    volumes:
+      - ./backend/etl:/backend/etl
+    command: uvicorn etl.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - .env.local
+
   health:
     volumes:
       - ./backend/health:/backend/health
