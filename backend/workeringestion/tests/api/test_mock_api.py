@@ -36,3 +36,13 @@ async def test_list_site_ids_returns_known_sites(mock_httpx):
     site_ids = await mock_api.list_site_ids()
 
     assert site_ids == ["SITE001", "SITE002", "SITE003"]
+
+
+async def test_get_sites_raw_returns_the_reference_data(mock_httpx):
+    response = await mock_api.get_sites_raw()
+
+    assert response.status_code == 200
+    site = response.json()[0]
+    assert site["site_name"] == "Bureau Paris La Défense"
+    assert site["capacity_kw"] == 200.0
+    assert site["status"] == "active"

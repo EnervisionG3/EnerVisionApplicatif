@@ -2,6 +2,7 @@ import httpx
 import pytest
 
 from workeringestion.api import blob_storage, mock_api
+from workeringestion.services import poller
 
 # Jeux de données figés, calqués sur la forme réelle de la Mock API
 # (vérifiée en direct sur http://10.105.200.45:8000) mais avec des valeurs
@@ -97,3 +98,10 @@ def mock_blob(monkeypatch):
 
     monkeypatch.setattr(blob_storage._container_client, "upload_blob", fake_upload_blob)
     return uploads
+
+
+@pytest.fixture(autouse=True)
+def reset_last_known_site_ids():
+    poller._last_known_site_ids = []
+    yield
+    poller._last_known_site_ids = []
