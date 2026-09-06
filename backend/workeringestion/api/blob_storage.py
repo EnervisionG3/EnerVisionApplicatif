@@ -1,6 +1,7 @@
 import logging
 import os
 import uuid
+from datetime import datetime, timezone
 
 from azure.core.exceptions import ResourceExistsError
 from azure.storage.blob.aio import ContainerClient
@@ -22,6 +23,16 @@ _container_client = ContainerClient.from_container_url(
 async def archive_raw(raw_json: str) -> str:
     """Écrit raw_json (texte brut, non reparsé) dans brute_data/."""
     blob_name = f"brute_data/{uuid.uuid4()}.json"
+    try:
+        await _container_client.upload_blob(name=blob_name, data=raw_json, overwrite=False)
+    except ResourceExistsError:
+        logger.warning("Blob déjà existant, ignoré : %s", blob_name)
+    return blob_name
+
+
+async def archive_sites_raw(raw_json: str) -> str:
+    fetched_on = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    blob_name = f"sites/{fetched_on}-{uuid.uuid4()}.json"
     try:
         await _container_client.upload_blob(name=blob_name, data=raw_json, overwrite=False)
     except ResourceExistsError:

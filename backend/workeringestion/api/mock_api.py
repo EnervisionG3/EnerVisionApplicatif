@@ -15,8 +15,12 @@ async def get_current_reading_raw(site_id: str) -> httpx.Response:
     return await _client.get(f"/api/v1/sites/{site_id}/current")
 
 
+async def get_sites_raw() -> httpx.Response:
+    return await _client.get("/api/v1/sites")
+
+
 async def list_site_ids() -> list[str]:
     """Sites découverts dynamiquement (le nombre varie selon l'instance de Mock API)."""
-    response = await _client.get("/api/v1/sites")
+    response = await get_sites_raw()
     response.raise_for_status()
     return [site["site_id"] for site in response.json()]
