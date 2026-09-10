@@ -216,11 +216,8 @@ jobs:
             --cov-report=term-missing \
             --cov-fail-under=80
 
-      # continue-on-error : un quota Actions saturé (ou toute erreur d'upload)
-      # ne doit jamais faire échouer les tests ni bloquer le déploiement.
       - name: Upload coverage report
         if: always()
-        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.service.name }}
@@ -274,13 +271,7 @@ jobs:
           pattern: coverage-*
           path: coverage-reports
 
-      # Contrôle explicite : si le glob sonar.python.coverage.reportPaths ne
-      # matche rien, la couverture remonte silencieusement à 0 sur SonarCloud.
-      # TODO: continue-on-error temporaire — l'artefact coverage-* n'est pas
-      # toujours présent (dossier coverage-reports absent) et bloque le
-      # pipeline. À retirer une fois la remontée de couverture fiabilisée.
       - name: Check coverage reports are present
-        continue-on-error: true
         run: |
           set -euo pipefail
           echo "Fichiers récupérés :"
@@ -417,14 +408,16 @@ jobs:
       - changes
       - build
 
+    # Déploiement en production UNIQUEMENT sur push vers main (merge
+    # develop -> main). Un merge d'une branche de feature vers develop
+    # déclenche tests + build + scan + push :SHA, mais jamais le déploiement.
     if: >
       needs.changes.outputs.has_changes == 'true' &&
       github.event_name == 'push' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+      github.ref == 'refs/heads/main'
 
-    # main et develop déploient sur le même hôte : un seul déploiement à la
-    # fois (le concurrency du workflow est clé sur github.ref et ne les
-    # sérialise pas entre eux). On ne coupe pas un déploiement en cours.
+    # Un seul déploiement à la fois sur l'hôte de prod. On ne coupe pas un
+    # déploiement en cours.
     concurrency:
       group: deploy-production
       cancel-in-progress: false
@@ -494,10 +487,11 @@ jobs:
       - changes
       - deploy
 
+    # DAST post-déploiement : suit `deploy`, donc uniquement sur push vers main.
     if: >
       needs.changes.outputs.has_changes == 'true' &&
       github.event_name == 'push' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+      github.ref == 'refs/heads/main'
 
     # Même groupe que `deploy` : le scan ZAP doit finir avant qu'un autre
     # déploiement ne modifie la prod sous ses pieds.
